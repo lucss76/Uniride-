@@ -1,0 +1,2499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniride - Red de Movilidad Valparaíso</title>
+
+    <!-- Estilos y script de Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #070b14;
+            color: #f8fafc;
+        }
+
+        @keyframes neonPulse {
+            0%, 100% {
+                box-shadow: 0 0 12px rgba(56, 189, 248, 0.45), 0 0 28px rgba(56, 189, 248, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 18px rgba(56, 189, 248, 0.8), 0 0 38px rgba(56, 189, 248, 0.42);
+            }
+        }
+
+        @keyframes busFloat {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-2.5px);
+            }
+        }
+
+        @keyframes busBeacon {
+            0% {
+                transform: translate(-50%, -50%) scale(0.82);
+                opacity: 0.85;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.45);
+                opacity: 0;
+            }
+        }
+
+        #pantalla-inicio {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #172554 0%, #0b1120 45%, #050811 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10; padding: 20px;
+        }
+
+        .titulo-container {
+            font-size: clamp(48px, 12vw, 82px); font-weight: 900; letter-spacing: -2px; margin-bottom: 10px;
+            text-shadow: 0 0 25px rgba(56, 189, 248, 0.75), 0 14px 35px rgba(2, 132, 199, 0.45);
+        }
+
+        .titulo-uni { color: #38bdf8; text-shadow: 0 0 24px rgba(56, 189, 248, 0.9); }
+        .titulo-ride { color: #ffffff; text-shadow: 0 0 18px rgba(255, 255, 255, 0.35); }
+
+        .subtitulo {
+            font-size: clamp(14px, 3.8vw, 18px); color: #cbd5e1; margin-bottom: 30px;
+            text-align: center; max-width: 650px; line-height: 1.6;
+        }
+
+        .btn-empezar {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white; border: 1px solid #7dd3fc; padding: 15px 44px;
+            font-size: 17px; font-weight: 800; border-radius: 12px; cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 0 24px rgba(56, 189, 248, 0.65), 0 0 48px rgba(14, 165, 233, 0.35);
+            animation: neonPulse 2.6s infinite ease-in-out;
+        }
+
+        .btn-empezar:hover {
+            background: #38bdf8; color: #070b14; transform: translateY(-3px) scale(1.03);
+        }
+
+        /* SELECCIÓN DE ROL */
+        #pantalla-rol {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #172554 0%, #0b1120 45%, #050811 100%);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 9; padding: 20px; overflow-y: auto;
+        }
+
+        .rol-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(240px, 340px));
+            gap: 20px;
+            margin-top: 22px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 720px;
+            justify-content: center;
+        }
+
+        .rol-card {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 16px;
+            padding: 24px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(56, 189, 248, 0.16);
+        }
+
+        .rol-card:hover {
+            transform: translateY(-4px);
+            border-color: #38bdf8;
+        }
+
+        .rol-card--empresa {
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+
+        .rol-card--empresa:hover {
+            border-color: #4ade80;
+        }
+
+        .rol-icon {
+            font-size: 38px;
+            background: #090d16;
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(56, 189, 248, 0.45);
+        }
+
+        .rol-card h3 { font-size: 19px; color: #f8fafc; }
+        .rol-card p { font-size: 13px; color: #cbd5e1; line-height: 1.45; }
+
+        /* INTERFAZ SIMULADOR USUARIO REGULAR */
+        #pantalla-simulador {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column;
+        }
+
+        header {
+            min-height: 62px;
+            background: linear-gradient(90deg, #0b1120 0%, #111c33 50%, #0b1120 100%);
+            border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 18px; flex-wrap: wrap; gap: 8px;
+            z-index: 500; box-shadow: 0 4px 28px rgba(0,0,0,0.65);
+        }
+
+        .header-title { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+        .time-control-box {
+            display: flex; align-items: center; background: #162238; padding: 5px 10px;
+            border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.35); gap: 8px;
+        }
+
+        .time-slider { width: 90px; cursor: pointer; accent-color: #38bdf8; }
+
+        .user-account-btn {
+            display: flex; align-items: center; gap: 6px; background: #162238;
+            border: 1px solid #38bdf8; color: #f8fafc; padding: 6px 12px; border-radius: 20px;
+            cursor: pointer; font-size: 12px; font-weight: 700; transition: 0.2s;
+        }
+        .user-account-btn:hover { background: #38bdf8; color: #070b14; }
+
+        .btn-volver {
+            background: #162238; color: #cbd5e1; border: 1px solid #334155;
+            padding: 7px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;
+            transition: 0.2s;
+        }
+        .btn-volver:hover { background: #ef4444; color: white; border-color: #ef4444; }
+
+        .main-container { display: flex; flex: 1; height: calc(100% - 62px); position: relative; overflow: hidden; }
+
+        aside {
+            width: 365px;
+            background: linear-gradient(180deg, #0d1526 0%, #090e1a 100%);
+            border-right: 1px solid rgba(56, 189, 248, 0.28);
+            padding: 14px; display: flex; flex-direction: column; gap: 12px; z-index: 400;
+            overflow-y: auto;
+        }
+
+        .map-wrapper {
+            flex: 1;
+            position: relative;
+            background-color: #020617;
+            overflow: hidden;
+            min-height: 280px;
+        }
+
+        #mapa-valparaiso, #mapa-empresa {
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+        }
+
+        .leaflet-container {
+            background: #091122;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .leaflet-tile-pane {
+            filter: invert(100%) hue-rotate(185deg) brightness(98%) contrast(114%) saturate(105%);
+        }
+
+        /* BOTÓN CENTRAR MI POSICIÓN */
+        .btn-centrar-ubicacion {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 460;
+            background: rgba(15, 23, 42, 0.96);
+            color: #38bdf8;
+            border: 1.5px solid #38bdf8;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 0 18px rgba(56, 189, 248, 0.4), 0 6px 16px rgba(0,0,0,0.65);
+            transition: all 0.2s ease;
+        }
+        .btn-centrar-ubicacion:hover {
+            background: #38bdf8;
+            color: #070b14;
+        }
+
+        /* DISEÑO DE BUS CON NOMBRE ARRIBA */
+        .bus-marker-anim-wrap {
+            position: relative;
+            width: 112px;
+            height: 62px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 2px;
+            user-select: none;
+            animation: busFloat 1.8s infinite ease-in-out;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .bus-marker-anim-wrap--selected {
+            transform: scale(1.14);
+            filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.95));
+        }
+
+        .bus-marker-top-label {
+            background: rgba(9, 15, 28, 0.96);
+            color: #ffffff;
+            border: 1.5px solid #38bdf8;
+            border-radius: 6px;
+            padding: 1px 6px;
+            font-size: 9.5px;
+            font-weight: 900;
+            line-height: 1.25;
+            white-space: nowrap;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.55);
+        }
+
+        .bus-marker-body-box {
+            position: relative;
+            width: 52px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bus-marker-beacon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 46px;
+            height: 24px;
+            border-radius: 8px;
+            border: 1.5px solid #38bdf8;
+            pointer-events: none;
+            animation: busBeacon 2.1s infinite ease-out;
+        }
+
+        .bus-marker-svg {
+            position: relative;
+            width: 50px;
+            height: 28px;
+            z-index: 2;
+        }
+
+        .bus-marker-psg-badge {
+            position: absolute;
+            top: -5px;
+            right: -14px;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #38bdf8;
+            border-radius: 999px;
+            padding: 0 4px;
+            font-size: 8.5px;
+            font-weight: 800;
+            line-height: 1.3;
+            z-index: 3;
+        }
+
+        /* PARADEROS VISIBLES AL ACERCARSE */
+        .paradero-marker-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid #38bdf8;
+            color: #f8fafc;
+            font-size: 9px;
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+            user-select: none;
+        }
+
+        .paradero-badge-p {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 14px;
+            height: 14px;
+            padding: 0 3px;
+            border-radius: 3px;
+            background: #0ea5e9;
+            color: #ffffff;
+            font-size: 8px;
+            font-weight: 900;
+        }
+
+        .map-hud {
+            position: absolute; top: 12px; left: 52px; z-index: 450;
+            background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(56, 189, 248, 0.55);
+            padding: 7px 12px; border-radius: 10px; font-size: 11px; color: #f8fafc;
+            backdrop-filter: blur(8px); pointer-events: none; max-width: calc(100% - 175px);
+        }
+
+        .route-legend-hud {
+            position: absolute; top: 50px; left: 52px; z-index: 450;
+            background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
+            padding: 7px 11px; border-radius: 10px; font-size: 11px; color: #e2e8f0;
+            backdrop-filter: blur(8px); max-width: 390px;
+        }
+
+        /* BARRA DE DESTINO Y TIEMPO ESTIMADO */
+        .destino-bar-box {
+            background: linear-gradient(145deg, #162238 0%, #0f172a 100%);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            border-radius: 10px;
+            padding: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 0 18px rgba(56, 189, 248, 0.16);
+        }
+
+        .destino-eta-resumen {
+            background: #090f1c;
+            border: 1px solid #1e293b;
+            border-radius: 7px;
+            padding: 7px 9px;
+            font-size: 11px;
+            color: #bae6fd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bus-eta-pill {
+            display: inline-block;
+            margin-top: 2px;
+            background: rgba(56, 189, 248, 0.16);
+            border: 1px solid rgba(56, 189, 248, 0.5);
+            color: #7dd3fc;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 3px 7px;
+            border-radius: 6px;
+        }
+
+        /* PANEL FLOTANTE DE COMENTARIOS */
+        .comentarios-corner-panel {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            width: 350px;
+            max-width: calc(100% - 32px);
+            max-height: 340px;
+            background: rgba(15, 23, 42, 0.97);
+            border: 1px solid #38bdf8;
+            border-radius: 14px;
+            padding: 13px;
+            z-index: 500;
+            box-shadow: 0 0 28px rgba(56, 189, 248, 0.35), 0 18px 40px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: none;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .comentarios-corner-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 7px;
+        }
+
+        .comentarios-corner-form { display: flex; flex-direction: column; gap: 6px; }
+        .comentarios-corner-row { display: flex; gap: 6px; }
+
+        .input-dark {
+            width: 100%;
+            background: #060b16;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            border-radius: 7px;
+            padding: 7px 9px;
+            font-size: 12px;
+        }
+        .input-dark:focus {
+            outline: none;
+            border-color: #38bdf8;
+        }
+
+        .comentarios-corner-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .comentario-item {
+            background: #162238;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 8px;
+            padding: 7px 9px;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .comentario-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #38bdf8;
+            font-weight: 700;
+        }
+
+        .comentario-texto { color: #f1f5f9; line-height: 1.35; }
+
+        .card-control {
+            background: linear-gradient(145deg, #162238 0%, #111a2c 100%);
+            border: 1px solid rgba(56, 189, 248, 0.32);
+            border-radius: 10px; padding: 11px;
+        }
+        .card-control h3 {
+            font-size: 11px; text-transform: uppercase; color: #38bdf8; margin-bottom: 7px; letter-spacing: 0.5px;
+        }
+
+        .speed-buttons { display: flex; gap: 6px; }
+        .speed-btn {
+            flex: 1; background: #0b1120; border: 1px solid #334155; color: #f1f5f9;
+            padding: 6px; border-radius: 6px; cursor: pointer; font-size: 11px; text-align: center;
+        }
+        .speed-btn.active {
+            background: #38bdf8; color: #070b14; border-color: #7dd3fc; font-weight: bold;
+        }
+
+        .panel-buses-container {
+            display: flex; flex-direction: column; gap: 9px; padding-right: 2px;
+        }
+
+        .bus-card {
+            background: linear-gradient(145deg, #162238 0%, #10192b 100%);
+            border-radius: 10px; padding: 11px;
+            border-left: 4px solid #38bdf8; border-top: 1px solid rgba(148, 163, 184, 0.2);
+            border-right: 1px solid rgba(148, 163, 184, 0.2); border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            cursor: pointer; transition: all 0.2s ease;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .bus-card:hover { transform: translateX(3px); border-color: #38bdf8; }
+        .bus-card.active-bus {
+            background: linear-gradient(145deg, #1e3a8a 0%, #111c33 100%);
+            border-color: #7dd3fc;
+        }
+        .bus-card-header { display: flex; justify-content: space-between; align-items: center; }
+        .bus-card-title { font-weight: 800; font-size: 13px; color: #38bdf8; display: flex; align-items: center; gap: 6px; }
+        .bus-status-tag { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+        .status-llena { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; }
+        .status-media { background: rgba(234, 179, 8, 0.25); color: #fde047; border: 1px solid #eab308; }
+        .status-desierta { background: rgba(34, 197, 94, 0.25); color: #86efac; border: 1px solid #22c55e; }
+
+        .bus-card-route {
+            font-size: 11px; color: #f8fafc; background: rgba(9, 15, 28, 0.85);
+            padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .bus-card-fares-preview {
+            display: flex; justify-content: space-between; font-size: 10.5px; color: #cbd5e1;
+            background: #090f1c; padding: 5px 8px; border-radius: 6px; border: 1px solid #1e293b;
+        }
+        .progress-bar { width: 100%; height: 6px; background: #090f1c; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #22c55e; width: 50%; transition: width 0.3s ease; }
+
+        .btn-add-bus {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white; border: 1px solid #7dd3fc; padding: 7px 11px;
+            border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; transition: 0.2s;
+        }
+        .btn-add-bus:hover { background: #38bdf8; color: #070b14; }
+
+        .btn-add-bus--verde {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            border-color: #86efac;
+        }
+        .btn-add-bus--verde:hover { background: #4ade80; color: #070b14; }
+
+        .btn-delete-bus {
+            background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 12px;
+        }
+        .btn-delete-bus:hover { color: #ef4444; }
+
+        /* PORTAL DE EMPRESA */
+        #pantalla-empresa {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; background-color: #060b16;
+        }
+
+        .empresa-layout {
+            display: flex;
+            flex: 1;
+            height: calc(100% - 62px);
+            overflow: hidden;
+        }
+
+        .empresa-sidebar {
+            width: 360px;
+            background-color: #0d1526;
+            border-right: 1px solid rgba(56, 189, 248, 0.28);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .empresa-bus-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .empresa-bus-item {
+            background: #162238;
+            border: 1px solid #334155;
+            border-left: 4px solid #38bdf8;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .empresa-bus-item.selected {
+            background: #172554;
+            border-color: #38bdf8;
+        }
+
+        .empresa-workspace {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 16px;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .empresa-map-box {
+            position: relative;
+            min-height: 360px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(74, 222, 128, 0.45);
+        }
+
+        .empresa-map-hud {
+            position: absolute;
+            top: 12px;
+            left: 52px;
+            z-index: 450;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid #4ade80;
+            padding: 7px 12px;
+            border-radius: 9px;
+            font-size: 11px;
+            color: #f8fafc;
+            pointer-events: none;
+            max-width: calc(100% - 175px);
+        }
+
+        .empresa-detail-area {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .empresa-detail-card {
+            background: #0d1526;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 14px;
+            padding: 18px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .alerta-papeles-box {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #475569;
+            border-radius: 10px;
+            padding: 11px 13px;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .info-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .info-box {
+            background: #162238;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .info-box-label {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 0.4px;
+            margin-bottom: 3px;
+        }
+
+        .info-box-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .patente-placa {
+            display: inline-block;
+            background: #f8fafc;
+            color: #070b14;
+            border: 2px solid #070b14;
+            outline: 2px solid #38bdf8;
+            padding: 2px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .doc-item {
+            background: #162238;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 11px 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .doc-badge {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .doc-al-dia { background: rgba(34, 197, 94, 0.22); color: #86efac; border: 1px solid #22c55e; }
+        .doc-por-vencer { background: rgba(234, 179, 8, 0.22); color: #fde047; border: 1px solid #eab308; }
+        .doc-vencido { background: rgba(239, 68, 68, 0.22); color: #fca5a5; border: 1px solid #ef4444; }
+        .doc-faltante { background: rgba(168, 85, 247, 0.25); color: #e9d5ff; border: 1px solid #a855f7; }
+
+        /* ADAPTACIÓN TIPO CELULAR */
+        @media (max-width: 768px) {
+            body, html {
+                overflow: auto;
+            }
+            #pantalla-simulador, #pantalla-empresa {
+                min-height: 100vh;
+                height: auto;
+            }
+            .rol-grid {
+                grid-template-columns: 1fr;
+            }
+            .main-container {
+                flex-direction: column;
+                height: auto;
+                min-height: calc(100vh - 62px);
+                overflow: visible;
+            }
+            .map-wrapper {
+                width: 100%;
+                height: 310px;
+                flex: none;
+            }
+            aside {
+                width: 100%;
+                border-right: none;
+                border-top: 1px solid rgba(56, 189, 248, 0.3);
+                overflow-y: visible;
+            }
+            .empresa-layout {
+                flex-direction: column;
+                height: auto;
+                min-height: calc(100vh - 62px);
+                overflow: visible;
+            }
+            .empresa-sidebar {
+                width: 100%;
+                max-height: 230px;
+            }
+            .empresa-workspace {
+                grid-template-columns: 1fr;
+                padding: 12px;
+            }
+            .empresa-map-box {
+                min-height: 270px;
+            }
+            .info-grid-2 {
+                grid-template-columns: 1fr;
+            }
+            .comentarios-corner-panel {
+                position: static;
+                width: 100%;
+                max-width: 100%;
+                max-height: 260px;
+                margin-top: 8px;
+            }
+            .time-slider {
+                width: 72px;
+            }
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(7, 11, 20, 0.88); backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-card {
+            background: linear-gradient(160deg, #162238 0%, #0d1526 100%);
+            border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 14px;
+            width: 500px; max-width: 92%; max-height: 90vh; overflow-y: auto;
+            padding: 22px; display: flex; flex-direction: column; gap: 12px; position: relative;
+        }
+        .modal-close {
+            position: absolute; top: 14px; right: 14px; background: transparent;
+            border: none; color: #94a3b8; font-size: 18px; cursor: pointer;
+        }
+        .modal-close:hover { color: white; }
+
+        .fare-section { background: #090f1c; border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 11px; }
+        .fare-section-title { font-size: 11.5px; font-weight: bold; text-transform: uppercase; color: #38bdf8; margin-bottom: 7px; }
+        .fare-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+        .fare-box { background: #162238; padding: 8px; border-radius: 6px; border: 1px solid #334155; }
+        .fare-box-label { font-size: 10px; color: #cbd5e1; }
+        .fare-box-price { font-size: 14px; font-weight: bold; color: #4ade80; margin-top: 3px; }
+
+        .history-list { max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; }
+        .history-item {
+            background: #090f1c; padding: 8px 10px; border-radius: 6px;
+            display: flex; justify-content: space-between; font-size: 12px; border: 1px solid #1e293b;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA 1: INICIO -->
+    <div id="pantalla-inicio">
+        <div class="titulo-container">
+            <span class="titulo-uni">Uni</span><span class="titulo-ride">ride</span>
+        </div>
+        <div class="subtitulo">Sistema inteligente de gestión de flota y red de transporte estudiantil en tiempo real en Valparaíso.</div>
+        <button class="btn-empezar" onclick="irASeleccionRol()">EMPEZAR</button>
+    </div>
+
+    <!-- PANTALLA 2: SELECCIÓN DE ROL -->
+    <div id="pantalla-rol">
+        <div class="titulo-container" style="font-size: 44px; margin-bottom: 4px;">
+            <span class="titulo-uni">Uni</span><span class="titulo-ride">ride</span>
+        </div>
+        <p style="color: #cbd5e1; font-size: 14px; text-align: center;">Selecciona el tipo de perfil con el que deseas ingresar al sistema</p>
+
+        <div class="rol-grid">
+            <div class="rol-card" onclick="ingresarComoRegular()">
+                <div class="rol-icon">🎓</div>
+                <h3>Usuario Regular</h3>
+                <p>Indica tu destino y mira cuánto demora la micro, paraderos al acercarte, líneas reales y pago de pasaje.</p>
+            </div>
+
+            <div class="rol-card rol-card--empresa" onclick="ingresarComoEmpresa()">
+                <div class="rol-icon">🏢</div>
+                <h3>Empresa</h3>
+                <p>Ve solo tus micros en el mapa, agrega unidades y revisa papeles faltantes, por vencer o vencidos.</p>
+            </div>
+        </div>
+
+        <button class="btn-volver" onclick="irAlInicio()">VOLVER AL INICIO</button>
+    </div>
+
+    <!-- PANTALLA 3A: SIMULADOR USUARIO REGULAR -->
+    <div id="pantalla-simulador">
+        <header>
+            <div class="header-title">
+                <span style="color: #38bdf8;">Uni</span>ride
+                <span style="color: #94a3b8; font-size: 13px; font-weight: normal;">| Valparaíso</span>
+            </div>
+            <div class="header-controls">
+                <div class="time-control-box">
+                    <span id="reloj-display" style="font-size: 12px; font-weight: 600;">🕒 08:00 (PEAK)</span>
+                    <input type="range" id="timeSlider" class="time-slider" min="0" max="23.99" step="0.1" value="8" oninput="manualTimeChange(this.value)">
+                </div>
+                <button class="user-account-btn" onclick="abrirModalCuenta()">
+                    👤 <span>$<span id="saldo-user">4850</span></span>
+                </button>
+                <button class="btn-volver" onclick="irASeleccionRol()">PERFIL</button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <aside>
+                <!-- BARRA DE DESTINO Y TIEMPO ESTIMADO DE LLEGADA -->
+                <div class="destino-bar-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 11px; font-weight: 800; color: #38bdf8; text-transform: uppercase;">🎯 ¿A dónde vas?</span>
+                        <span id="eta-mejor-bus" style="font-size: 11px; font-weight: 700; color: #4ade80;"></span>
+                    </div>
+                    <input id="input-destino-usuario" list="lista-paraderos-destino" class="input-dark" placeholder="Escribe o elige tu paradero / destino..." oninput="actualizarDestinoUsuario()">
+                    <datalist id="lista-paraderos-destino"></datalist>
+                    <div class="destino-eta-resumen">
+                        <span id="texto-destino-seleccionado">Destino: <strong>Estación Puerto / Plaza Sotomayor</strong></span>
+                        <button type="button" class="btn-add-bus" style="padding: 4px 8px; font-size: 10.5px;" onclick="enfocarDestinoEnMapa()">Ver en mapa</button>
+                    </div>
+                </div>
+
+                <div class="card-control">
+                    <h3>Velocidad de Simulación</h3>
+                    <div class="speed-buttons">
+                        <button class="speed-btn" onclick="cambiarVelocidad(0, this)">Pausa</button>
+                        <button class="speed-btn active" onclick="cambiarVelocidad(0.5, this)">0.5x</button>
+                        <button class="speed-btn" onclick="cambiarVelocidad(1.0, this)">1.0x</button>
+                        <button class="speed-btn" onclick="cambiarVelocidad(2.0, this)">2.0x</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 12px; font-weight: bold; color: #7dd3fc;">FLOTA ACTIVA</span>
+                    <button class="btn-add-bus" onclick="agregarMicro()">+ Micro</button>
+                </div>
+
+                <div id="panel-buses" class="panel-buses-container"></div>
+            </aside>
+
+            <div class="map-wrapper">
+                <div id="hud-paraderos-zoom" class="map-hud">
+                    ⚓ <strong>Valparaíso</strong> · Acerca el zoom (≥ 16) para ver paraderos
+                </div>
+                <div id="leyenda-recorrido-activa" class="route-legend-hud">
+                    🛤️ <strong>Recorrido:</strong> Selecciona una micro para mostrar su trazado.
+                </div>
+                <button type="button" class="btn-centrar-ubicacion" onclick="centrarEnMiPosicion(map)">
+                    📍 Mi posición
+                </button>
+
+                <div id="mapa-valparaiso"></div>
+
+                <!-- PANEL DE COMENTARIOS -->
+                <div id="panel-comentarios-micro" class="comentarios-corner-panel">
+                    <div class="comentarios-corner-header">
+                        <div>
+                            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Recorrido y comentarios</div>
+                            <strong id="comentario-micro-titulo" style="font-size: 14px; color: #38bdf8;">Línea 601</strong>
+                            <div id="comentario-micro-recorrido" style="font-size: 11px; color: #cbd5e1; margin-top: 2px;"></div>
+                        </div>
+                        <button class="btn-delete-bus" style="font-size: 15px;" onclick="cerrarComentariosMicro()">✕</button>
+                    </div>
+
+                    <form class="comentarios-corner-form" onsubmit="agregarComentarioMicro(event)">
+                        <div class="comentarios-corner-row">
+                            <select id="comentario-micro-rating" class="input-dark" style="max-width: 110px;">
+                                <option value="5">⭐⭐⭐⭐⭐</option>
+                                <option value="4">⭐⭐⭐⭐</option>
+                                <option value="3">⭐⭐⭐</option>
+                                <option value="2">⭐⭐</option>
+                                <option value="1">⭐</option>
+                            </select>
+                            <input id="comentario-micro-texto" type="text" class="input-dark" placeholder="Comentar..." required>
+                            <button type="submit" class="btn-add-bus" style="padding: 6px 10px;">Enviar</button>
+                        </div>
+                    </form>
+
+                    <div id="lista-comentarios-micro" class="comentarios-corner-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA 3B: PORTAL DE EMPRESA -->
+    <div id="pantalla-empresa">
+        <header>
+            <div class="header-title">
+                <span style="color: #38bdf8;">Uni</span>ride <span style="color: #4ade80; font-size: 13px; font-weight: 700;">| Portal Empresa</span>
+            </div>
+            <div class="header-controls">
+                <span id="contador-flota-empresa" style="font-size: 11.5px; color: #e2e8f0; background: #162238; padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.35);">
+                    🚌 6 Unidades
+                </span>
+                <button class="btn-add-bus btn-add-bus--verde" onclick="abrirModalNuevaMicroEmpresa()">
+                    + Añadir Micro
+                </button>
+                <button class="btn-volver" onclick="irASeleccionRol()">PERFIL</button>
+            </div>
+        </header>
+
+        <div class="empresa-layout">
+            <div class="empresa-sidebar">
+                <span style="font-size: 12px; font-weight: bold; color: #38bdf8; letter-spacing: 0.5px;">MICROS DE TU EMPRESA</span>
+                <p style="font-size: 11.5px; color: #cbd5e1;">Solo se muestran en el mapa las unidades de tu empresa.</p>
+                <div id="lista-buses-empresa" class="empresa-bus-list"></div>
+            </div>
+
+            <div class="empresa-workspace">
+                <div class="empresa-map-box">
+                    <div id="hud-empresa-mapa" class="empresa-map-hud">
+                        📍 <strong>Solo tus micros</strong> · Clic en unidad para enfocar
+                    </div>
+                    <button type="button" class="btn-centrar-ubicacion" onclick="centrarEnMiPosicion(mapaEmpresa)">
+                        📍 Mi posición
+                    </button>
+                    <div id="mapa-empresa"></div>
+                </div>
+
+                <div class="empresa-detail-area" id="detalle-bus-empresa"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL AÑADIR MICRO A FLOTA DE EMPRESA -->
+    <div id="modal-nueva-micro-empresa" class="modal-overlay">
+        <div class="modal-card">
+            <button class="modal-close" onclick="cerrarModal('modal-nueva-micro-empresa')">✕</button>
+            <h2 style="font-size: 18px; color: #4ade80;">🚌 Registrar Nueva Micro</h2>
+            <p style="font-size: 12px; color: #cbd5e1;">Deja una fecha vacía si aún no tienes ese papel registrado.</p>
+
+            <form id="form-nueva-micro-empresa" onsubmit="guardarNuevaMicroEmpresa(event)" style="display: flex; flex-direction: column; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: #94a3b8;">Número / Línea (ej: Línea 608)</label>
+                    <input id="nueva-recorrido" type="text" class="input-dark" placeholder="Ej: Línea 608" required>
+                </div>
+
+                <div>
+                    <label style="font-size: 11px; color: #94a3b8;">Tramo / Recorrido en Valparaíso</label>
+                    <input id="nueva-ruta" type="text" class="input-dark" placeholder="Ej: Playa Ancha — Av. Errázuriz — Av. España" required>
+                </div>
+
+                <div class="info-grid-2" style="gap: 10px;">
+                    <div>
+                        <label style="font-size: 11px; color: #94a3b8;">Nombre del Chofer</label>
+                        <input id="nuevo-chofer" type="text" class="input-dark" placeholder="Ej: Luis Poblete Tapia" required>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: #94a3b8;">Matrícula / Patente</label>
+                        <input id="nueva-matricula" type="text" class="input-dark" placeholder="Ej: GH·TR·54" required>
+                    </div>
+                </div>
+
+                <div class="info-grid-2" style="gap: 10px;">
+                    <div>
+                        <label style="font-size: 11px; color: #94a3b8;">Vence Permiso Circulación</label>
+                        <input id="nuevo-permiso" type="date" class="input-dark" value="2027-03-31">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: #94a3b8;">Vence Revisión Técnica</label>
+                        <input id="nuevo-revision" type="date" class="input-dark" value="2026-12-15">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 11px; color: #94a3b8;">Vence Seguro SOAP</label>
+                    <input id="nuevo-soap" type="date" class="input-dark" value="2027-03-31">
+                </div>
+
+                <button type="submit" style="background: #22c55e; color: #070b14; border: none; padding: 11px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 4px;">
+                    ✓ Guardar y Ubicar en Mapa
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL MI CUENTA -->
+    <div id="modal-cuenta" class="modal-overlay">
+        <div class="modal-card">
+            <button class="modal-close" onclick="cerrarModal('modal-cuenta')">✕</button>
+            <h2 style="font-size: 18px; color: #38bdf8;">👤 Mi Cuenta Uniride</h2>
+            <div style="display: flex; gap: 12px;">
+                <div style="flex: 1; background: #090f1c; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+                    <div style="font-size: 11px; color: #94a3b8;">Saldo Disponible</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #4ade80;">$<span id="modal-saldo">4850</span></div>
+                </div>
+                <div style="flex: 1; background: #090f1c; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+                    <div style="font-size: 11px; color: #94a3b8;">Gasto este Mes</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #38bdf8;">$<span id="modal-gasto">3150</span></div>
+                </div>
+            </div>
+            <div>
+                <h4 style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">TIPO DE PASE ACTIVO</h4>
+                <select id="tipo-pase" onchange="cambiarTipoPase(this.value)" style="width: 100%; background: #090f1c; color: white; border: 1px solid #334155; padding: 10px; border-radius: 8px; font-size: 13px;">
+                    <option value="tne">Pase Estudiantil (TNE)</option>
+                    <option value="general">Pasaje General</option>
+                    <option value="adulto">Adulto Mayor</option>
+                </select>
+            </div>
+            <div>
+                <h4 style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">HISTORIAL RECIENTE</h4>
+                <div id="historial-lista" class="history-list"></div>
+            </div>
+            <button onclick="recargarSaldo()" style="background: #22c55e; color: #070b14; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;">
+                + Recargar $2.000
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL MICRO -->
+    <div id="modal-micro" class="modal-overlay">
+        <div class="modal-card">
+            <button class="modal-close" onclick="cerrarModal('modal-micro')">✕</button>
+            <h2 id="micro-modal-title" style="font-size: 18px; color: #38bdf8;">Línea 601</h2>
+            <p id="micro-modal-recorrido" style="font-size: 13px; font-weight: 700; color: #f8fafc; background: rgba(56, 189, 248, 0.16); border: 1px solid #38bdf8; padding: 8px 10px; border-radius: 8px;"></p>
+            <p id="micro-modal-info" style="font-size: 12px; color: #cbd5e1;">Próxima parada</p>
+            <p id="micro-modal-fleet" style="font-size: 12px; color: #e2e8f0; background: #090f1c; padding: 8px 10px; border-radius: 8px; border: 1px solid #334155;"></p>
+
+            <div class="fare-section">
+                <div class="fare-section-title">1. Pasaje General</div>
+                <div class="fare-grid-3">
+                    <div class="fare-box"><div class="fare-box-label">Local</div><div id="price-gen-local" class="fare-box-price">$330</div></div>
+                    <div class="fare-box"><div class="fare-box-label">Plan - Cerro</div><div id="price-gen-cerro" class="fare-box-price">$430</div></div>
+                    <div class="fare-box"><div class="fare-box-label">Directo</div><div id="price-gen-directo" class="fare-box-price">$650</div></div>
+                </div>
+            </div>
+
+            <div class="fare-section" style="border-color: #38bdf8;">
+                <div class="fare-section-title" style="color: #38bdf8;">2. Pasaje Estudiantil (TNE)</div>
+                <div class="fare-grid-3">
+                    <div class="fare-box"><div class="fare-box-label">Local</div><div id="price-tne-local" class="fare-box-price" style="color: #38bdf8;">$160</div></div>
+                    <div class="fare-box"><div class="fare-box-label">Plan - Cerro</div><div id="price-tne-cerro" class="fare-box-price">$250</div></div>
+                    <div class="fare-box"><div class="fare-box-label">Directo</div><div id="price-tne-directo" class="fare-box-price">$280</div></div>
+                </div>
+            </div>
+
+            <div class="fare-section">
+                <div class="fare-section-title">3. Adulto Mayor</div>
+                <div class="fare-grid-3">
+                    <div class="fare-box"><div class="fare-box-label">Local</div><div id="price-adu-local" class="fare-box-price">$180</div></div>
+                    <div class="fare-box"><div class="fare-box-label">Plan - Cerro</div><div id="price-adu-cerro" class="fare-box-price">$280</div></div>
+                    <div class="fare-box"><div class="fare-box-label">Directo</div><div id="price-adu-directo" class="fare-box-price">$420</div></div>
+                </div>
+            </div>
+
+            <div>
+                <label style="font-size: 12px; color: #94a3b8;">SELECCIONA TRAMO A RECORRER:</label>
+                <select id="select-tramo" style="width: 100%; background: #090f1c; color: white; border: 1px solid #334155; padding: 8px; border-radius: 8px; margin-top: 6px; font-size: 13px;">
+                    <option value="local">Tramo Local</option>
+                    <option value="cerro">Tramo Plan - Cerro</option>
+                    <option value="directo">Tramo Directo</option>
+                </select>
+            </div>
+
+            <button onclick="subirAMicro()" style="background: #38bdf8; color: #070b14; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;">
+                🚌 Pagar y Subir a esta Micro
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL PARADERO -->
+    <div id="modal-paradero" class="modal-overlay">
+        <div class="modal-card">
+            <button class="modal-close" onclick="cerrarModal('modal-paradero')">✕</button>
+            <h2 id="paradero-modal-title" style="font-size: 18px; color: #38bdf8;">Paradero Valparaíso</h2>
+            <p style="font-size: 12px; color: #cbd5e1;">Información de arribos y líneas en tiempo real</p>
+
+            <div class="fare-section">
+                <div class="fare-section-title">Líneas con servicio en esta parada</div>
+                <div id="paradero-lineas-list" style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;"></div>
+            </div>
+
+            <div class="fare-section">
+                <div class="fare-section-title">Próximos Arribos Estimados</div>
+                <div id="paradero-arribos-list" class="history-list"></div>
+            </div>
+
+            <button onclick="cerrarModal('modal-paradero')" style="background: #38bdf8; color: #070b14; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;">
+                Cerrar Panel
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const COLORES_BUS = ['#38bdf8', '#22c55e', '#f97316', '#a855f7', '#eab308', '#06b6d4', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6'];
+        const ZOOM_PARADEROS_MIN = 16;
+
+        /* =========================================================
+           100 PARADEROS MANUALES VALPARAÍSO
+           ========================================================= */
+        const paraderosValparaiso100 = [
+          { id: 1, nombre: "Plaza Wheelwright / Aduana", lat: -33.0351, lng: -71.6316 },
+          { id: 2, nombre: "Av. Errázuriz / Melgarejo", lat: -33.0372, lng: -71.6299 },
+          { id: 3, nombre: "Estación Puerto / Plaza Sotomayor", lat: -33.0386, lng: -71.6288 },
+          { id: 4, nombre: "Av. Errázuriz / Gómez Carreño", lat: -33.0402, lng: -71.6269 },
+          { id: 5, nombre: "Av. Errázuriz / Almirante Señoret", lat: -33.0419, lng: -71.6245 },
+          { id: 6, nombre: "Estación Bellavista / Av. Errázuriz", lat: -33.0435, lng: -71.6218 },
+          { id: 7, nombre: "Av. Errázuriz / Pudeto", lat: -33.0442, lng: -71.6175 },
+          { id: 8, nombre: "Estación Francia / Av. Errázuriz", lat: -33.0447, lng: -71.6122 },
+          { id: 9, nombre: "Av. Errázuriz / Simón Bolívar", lat: -33.0449, lng: -71.6085 },
+          { id: 10, nombre: "Nudo Barón / Av. Errázuriz", lat: -33.0432, lng: -71.6052 },
+          { id: 11, nombre: "Estación Barón / Muelle Barón", lat: -33.0415, lng: -71.6048 },
+          { id: 12, nombre: "Av. España / Tornamesa Barón", lat: -33.0398, lng: -71.6025 },
+          { id: 13, nombre: "Calle Bustamante / Plaza Echaurren", lat: -33.0365, lng: -71.6308 },
+          { id: 14, nombre: "Calle Serrano / Plaza Sotomayor", lat: -33.0389, lng: -71.6301 },
+          { id: 15, nombre: "Calle Prat / Urriola", lat: -33.0401, lng: -71.6285 },
+          { id: 16, nombre: "Reloj Turri / Calle Esmeralda", lat: -33.0416, lng: -71.6272 },
+          { id: 17, nombre: "Plaza Aníbal Pinto / Calle Condell", lat: -33.0442, lng: -71.6245 },
+          { id: 18, nombre: "Calle Condell / Bellavista", lat: -33.0451, lng: -71.6223 },
+          { id: 19, nombre: "Plaza Victoria / Av. Pedro Montt", lat: -33.0468, lng: -71.6202 },
+          { id: 20, nombre: "Av. Pedro Montt / Las Heras", lat: -33.0472, lng: -71.6176 },
+          { id: 21, nombre: "Parque Italia / Av. Pedro Montt", lat: -33.0475, lng: -71.6152 },
+          { id: 22, nombre: "Av. Pedro Montt / Francia", lat: -33.0478, lng: -71.6125 },
+          { id: 23, nombre: "Av. Pedro Montt / San Ignacio", lat: -33.0480, lng: -71.6098 },
+          { id: 24, nombre: "Congreso Nacional / Av. Pedro Montt", lat: -33.0481, lng: -71.6068 },
+          { id: 25, nombre: "Terminal de Buses Valparaíso", lat: -33.0484, lng: -71.6052 },
+          { id: 26, nombre: "Av. Pedro Montt / Av. Argentina", lat: -33.0485, lng: -71.6046 },
+          { id: 27, nombre: "Av. Brasil / Bellavista", lat: -33.0445, lng: -71.6215 },
+          { id: 28, nombre: "Av. Brasil / Molina", lat: -33.0448, lng: -71.6192 },
+          { id: 29, nombre: "Av. Brasil / Las Heras", lat: -33.0451, lng: -71.6168 },
+          { id: 30, nombre: "PUCV Casa Central / Av. Brasil", lat: -33.0453, lng: -71.6132 },
+          { id: 31, nombre: "Av. Brasil / Uruguay", lat: -33.0455, lng: -71.6095 },
+          { id: 32, nombre: "Av. Brasil / Av. Argentina", lat: -33.0456, lng: -71.6050 },
+          { id: 33, nombre: "Calle Chacabuco / Edwards", lat: -33.0461, lng: -71.6195 },
+          { id: 34, nombre: "Calle Chacabuco / Freire", lat: -33.0465, lng: -71.6145 },
+          { id: 35, nombre: "Calle Chacabuco / Uruguay", lat: -33.0468, lng: -71.6092 },
+          { id: 36, nombre: "Av. Colón / Ecuatoriana", lat: -33.0462, lng: -71.6238 },
+          { id: 37, nombre: "Av. Colón / Salvador Donoso", lat: -33.0476, lng: -71.6205 },
+          { id: 38, nombre: "Av. Colón / Las Heras", lat: -33.0482, lng: -71.6175 },
+          { id: 39, nombre: "Av. Colón / Francia", lat: -33.0487, lng: -71.6130 },
+          { id: 40, nombre: "Av. Colón / Uruguay", lat: -33.0491, lng: -71.6112 },
+          { id: 41, nombre: "Av. Colón / Av. Argentina", lat: -33.0496, lng: -71.6042 },
+          { id: 42, nombre: "Av. Independencia / Plaza Victoria", lat: -33.0478, lng: -71.6201 },
+          { id: 43, nombre: "Av. Independencia / Freire", lat: -33.0488, lng: -71.6148 },
+          { id: 44, nombre: "Hospital Carlos Van Buren / San Ignacio", lat: -33.0508, lng: -71.6105 },
+          { id: 45, nombre: "Av. Argentina / Chacabuco", lat: -33.0469, lng: -71.6048 },
+          { id: 46, nombre: "Av. Argentina / Independencia", lat: -33.0505, lng: -71.6040 },
+          { id: 47, nombre: "Av. Argentina / Rancagua", lat: -33.0512, lng: -71.6038 },
+          { id: 48, nombre: "Av. Santos Ossa / Subida Ruta 68", lat: -33.0525, lng: -71.6032 },
+          { id: 49, nombre: "Av. Santos Ossa / Noruega", lat: -33.0558, lng: -71.6015 },
+          { id: 50, nombre: "Av. Santos Ossa / Eloy Alfaro", lat: -33.0592, lng: -71.5998 },
+          { id: 51, nombre: "Av. Santos Ossa / Pasarela Los Aromos", lat: -33.0628, lng: -71.5982 },
+          { id: 52, nombre: "Av. Washington / Cerro O'Higgins", lat: -33.0545, lng: -71.6055 },
+          { id: 53, nombre: "Calle Rancagua / Delicias", lat: -33.0518, lng: -71.6062 },
+          { id: 54, nombre: "Calle Juana Ross / Av. Argentina", lat: -33.0445, lng: -71.6049 },
+          { id: 55, nombre: "Subida Carampangue / Bustamante", lat: -33.0348, lng: -71.6335 },
+          { id: 56, nombre: "Subida Artillería / Plaza Wheelwright", lat: -33.0342, lng: -71.6322 },
+          { id: 57, nombre: "Paseo 21 de Mayo / Cerro Artillería", lat: -33.0315, lng: -71.6318 },
+          { id: 58, nombre: "Av. Gran Bretaña / Plaza Waddington", lat: -33.0268, lng: -71.6342 },
+          { id: 59, nombre: "Av. Gran Bretaña / Calle Necochea", lat: -33.0245, lng: -71.6365 },
+          { id: 60, nombre: "Av. Playa Ancha / Av. Quebrada Verde", lat: -33.0322, lng: -71.6358 },
+          { id: 61, nombre: "Av. Playa Ancha / Parque Alejo Barrios", lat: -33.0285, lng: -71.6382 },
+          { id: 62, nombre: "Estadio Elías Figueroa / Leopoldo Carvallo", lat: -33.0252, lng: -71.6395 },
+          { id: 63, nombre: "Facultad de Ciencias UV / Gran Bretaña", lat: -33.0238, lng: -71.6388 },
+          { id: 64, nombre: "Universidad de Playa Ancha (UPLA) / González", lat: -33.0235, lng: -71.6415 },
+          { id: 65, nombre: "Av. Altamirano / Caleta El Membrillo", lat: -33.0278, lng: -71.6295 },
+          { id: 66, nombre: "Av. Altamirano / Playa Las Torpederas", lat: -33.0218, lng: -71.6348 },
+          { id: 67, nombre: "Faro Punta Ángeles / Camino Costero", lat: -33.0195, lng: -71.6412 },
+          { id: 68, nombre: "Av. Quebrada Verde / Vista Hermosa", lat: -33.0318, lng: -71.6405 },
+          { id: 69, nombre: "Cementerio N° 3 / Av. Quebrada Verde", lat: -33.0315, lng: -71.6448 },
+          { id: 70, nombre: "Población Montedónico / Camino La Pólvora", lat: -33.0365, lng: -71.6512 },
+          { id: 71, nombre: "Porvenir Bajo / Av. Pacífico", lat: -33.0345, lng: -71.6425 },
+          { id: 72, nombre: "Av. Federico Santa María / Puertas Negras", lat: -33.0412, lng: -71.6485 },
+          { id: 73, nombre: "Subida Tomás Ramos / Cerro Cordillera", lat: -33.0385, lng: -71.6338 },
+          { id: 74, nombre: "Calle Castillo / Cerro Cordillera", lat: -33.0402, lng: -71.6352 },
+          { id: 75, nombre: "Av. Diego Portales / Subida Barón", lat: -33.0435, lng: -71.5985 },
+          { id: 76, nombre: "Plaza Mirador Barón / Diego Portales", lat: -33.0418, lng: -71.5958 },
+          { id: 77, nombre: "Iglesia San Francisco / Cerro Barón", lat: -33.0405, lng: -71.5942 },
+          { id: 78, nombre: "Calle Tocornal / Cerro Barón", lat: -33.0448, lng: -71.5965 },
+          { id: 79, nombre: "Av. Los Placeres / Javiera Carrera", lat: -33.0382, lng: -71.5948 },
+          { id: 80, nombre: "Univ. Técnica Federico Santa María (UTFSM)", lat: -33.0352, lng: -71.5955 },
+          { id: 81, nombre: "Av. Los Placeres / Plaza La Conquista", lat: -33.0398, lng: -71.5912 },
+          { id: 82, nombre: "Av. Los Placeres / Agua Santa", lat: -33.0425, lng: -71.5885 },
+          { id: 83, nombre: "Calle Carmen / Cerro Los Placeres", lat: -33.0375, lng: -71.5892 },
+          { id: 84, nombre: "Av. España / Yolanda", lat: -33.0372, lng: -71.5992 },
+          { id: 85, nombre: "Av. España / Pelle (Acceso UTFSM)", lat: -33.0345, lng: -71.5958 },
+          { id: 86, nombre: "Av. España / Caleta Portales", lat: -33.0325, lng: -71.5918 },
+          { id: 87, nombre: "Estación Portales / Av. España", lat: -33.0318, lng: -71.5902 },
+          { id: 88, nombre: "Av. España / Límite Recreo (Viña)", lat: -33.0295, lng: -71.5865 },
+          { id: 89, nombre: "Av. Alemania / Plazuela San Luis (Cerro Alegre)", lat: -33.0455, lng: -71.6312 },
+          { id: 90, nombre: "Paseo Yugoslavo / Cerro Alegre", lat: -33.0428, lng: -71.6285 },
+          { id: 91, nombre: "Paseo Gervasoni / Cerro Concepción", lat: -33.0418, lng: -71.6265 },
+          { id: 92, nombre: "Av. Alemania / Parque Cultural (Cerro Cárcel)", lat: -33.0478, lng: -71.6285 },
+          { id: 93, nombre: "Subida Ecuador / Cerro Bellavista", lat: -33.0465, lng: -71.6248 },
+          { id: 94, nombre: "Museo La Sebastiana / Cerro Bellavista", lat: -33.0492, lng: -71.6225 },
+          { id: 95, nombre: "Av. Alemania / Subida Ferrari", lat: -33.0505, lng: -71.6212 },
+          { id: 96, nombre: "Av. Alemania / Baquedano (Cerro Francia)", lat: -33.0532, lng: -71.6155 },
+          { id: 97, nombre: "Av. Francia / Subida Cerro Monjas", lat: -33.0518, lng: -71.6138 },
+          { id: 98, nombre: "Av. Alemania / Calle Colón Alto (La Cruz)", lat: -33.0545, lng: -71.6108 },
+          { id: 99, nombre: "Calle Vergara / Cerro La Cruz", lat: -33.0538, lng: -71.6085 },
+          { id: 100, nombre: "Av. Alemania / Nudo El Litre - Las Cañas", lat: -33.0552, lng: -71.6072 }
+        ];
+
+        function poblarSugerenciasDestino() {
+            const datalist = document.getElementById('lista-paraderos-destino');
+            if (!datalist) return;
+            datalist.innerHTML = paraderosValparaiso100
+                .map(p => `<option value="P${p.id} · ${p.nombre}"></option>`)
+                .join('');
+        }
+        poblarSugerenciasDestino();
+
+        /* =========================================================
+           1. RECORRIDOS Y LÍNEAS REALES DE VALPARAÍSO
+           ========================================================= */
+        const RECORRIDOS_VALPO = [
+            {
+                nombreRecorrido: "Playa Ancha ↔ Aduana / Puerto ↔ Av. España",
+                tramoCorto: "Playa Ancha - España",
+                puntos: [
+                    [-33.0235, -71.6415],
+                    [-33.0278, -71.6295],
+                    [-33.0386, -71.6288],
+                    [-33.0435, -71.6218],
+                    [-33.0415, -71.6048],
+                    [-33.0318, -71.5902],
+                    [-33.0386, -71.6288],
+                    [-33.0235, -71.6415]
+                ]
+            },
+            {
+                nombreRecorrido: "Polanco / El Almendral ↔ Av. Argentina ↔ Congreso",
+                tramoCorto: "Argentina - Congreso",
+                puntos: [
+                    [-33.0453, -71.6132],
+                    [-33.0478, -71.6125],
+                    [-33.0481, -71.6068],
+                    [-33.0469, -71.6048],
+                    [-33.0508, -71.6105],
+                    [-33.0453, -71.6132]
+                ]
+            },
+            {
+                nombreRecorrido: "Montedónico / Playa Ancha ↔ Av. Errázuriz ↔ Av. España",
+                tramoCorto: "Playa Ancha - Errázuriz",
+                puntos: [
+                    [-33.0315, -71.6448],
+                    [-33.0252, -71.6395],
+                    [-33.0351, -71.6316],
+                    [-33.0435, -71.6218],
+                    [-33.0398, -71.6025],
+                    [-33.0318, -71.5902],
+                    [-33.0351, -71.6316],
+                    [-33.0315, -71.6448]
+                ]
+            },
+            {
+                nombreRecorrido: "Los Placeres / UTFSM ↔ Av. España ↔ Estación Portales",
+                tramoCorto: "Placeres - Av. España",
+                puntos: [
+                    [-33.0382, -71.5948],
+                    [-33.0352, -71.5955],
+                    [-33.0345, -71.5958],
+                    [-33.0318, -71.5902],
+                    [-33.0398, -71.6025],
+                    [-33.0418, -71.5958],
+                    [-33.0382, -71.5948]
+                ]
+            }
+        ];
+
+        let flotaEmpresaRegistrada = [
+            {
+                id: "emp-601",
+                recorrido: "Línea 601",
+                ruta: "Playa Ancha ↔ Aduana / Puerto ↔ Av. España",
+                tramoCorto: "Playa Ancha - España",
+                rutaIdx: 0,
+                color: "#38bdf8",
+                chofer: "Marcelo Fuentes Rojas",
+                matricula: "BB·KL·42",
+                permisoCirculacion: "2027-03-31",
+                revisionTecnica: "2026-12-08",
+                seguroSoap: "2027-03-31",
+                velocidadBase: 0.32
+            },
+            {
+                id: "emp-506",
+                recorrido: "Línea 506",
+                ruta: "Polanco / El Almendral ↔ Av. Argentina ↔ Congreso",
+                tramoCorto: "Argentina - Congreso",
+                rutaIdx: 1,
+                color: "#22c55e",
+                chofer: "Patricia Morales Soto",
+                matricula: "CC·RT·89",
+                permisoCirculacion: "2027-03-31",
+                revisionTecnica: "2027-05-14",
+                seguroSoap: "",
+                velocidadBase: 0.28
+            },
+            {
+                id: "emp-603",
+                recorrido: "Línea 603",
+                ruta: "Montedónico / Playa Ancha ↔ Av. Errázuriz ↔ Av. España",
+                tramoCorto: "Playa Ancha - Errázuriz",
+                rutaIdx: 2,
+                color: "#f97316",
+                chofer: "Verónica Herrera Núñez",
+                matricula: "FG·VX·63",
+                permisoCirculacion: "2027-03-31",
+                revisionTecnica: "2026-11-10",
+                seguroSoap: "2027-03-31",
+                velocidadBase: 0.3
+            },
+            {
+                id: "emp-604",
+                recorrido: "Línea 604",
+                ruta: "Los Placeres / UTFSM ↔ Av. España ↔ Estación Portales",
+                tramoCorto: "Placeres - Av. España",
+                rutaIdx: 3,
+                color: "#a855f7",
+                chofer: "Rodrigo Contreras Díaz",
+                matricula: "DF·MP·17",
+                permisoCirculacion: "2027-03-31",
+                revisionTecnica: "2027-04-22",
+                seguroSoap: "2027-03-31",
+                velocidadBase: 0.29
+            },
+            {
+                id: "emp-607",
+                recorrido: "Línea 607",
+                ruta: "Polanco / El Almendral ↔ Av. Argentina ↔ Congreso",
+                tramoCorto: "Argentina - Congreso",
+                rutaIdx: 1,
+                color: "#eab308",
+                chofer: "Cristian Tapia Valdés",
+                matricula: "HJ·LW·94",
+                permisoCirculacion: "2026-12-15",
+                revisionTecnica: "2027-06-18",
+                seguroSoap: "2027-03-31",
+                velocidadBase: 0.27
+            },
+            {
+                id: "emp-602",
+                recorrido: "Línea 602",
+                ruta: "Playa Ancha ↔ Aduana / Puerto ↔ Av. España",
+                tramoCorto: "Playa Ancha - España",
+                rutaIdx: 0,
+                color: "#06b6d4",
+                chofer: "Claudia Espinoza Lagos",
+                matricula: "JK·ZN·28",
+                permisoCirculacion: "2027-03-31",
+                revisionTecnica: "2027-07-09",
+                seguroSoap: "2027-03-31",
+                velocidadBase: 0.34
+            }
+        ];
+
+        const LINEAS_ADICIONALES_VALPO = ["Línea 605", "Línea 606", "Línea 501", "Línea 210"];
+        let busEmpresaSeleccionadoIdx = 0;
+
+        function evaluarEstadoDocumento(nombreDoc, fechaIso) {
+            if (!fechaIso || !fechaIso.trim()) {
+                return {
+                    etiqueta: "NO TIENE / FALTA",
+                    clase: "doc-faltante",
+                    esProblema: true,
+                    detalle: `${nombreDoc}: Sin registro ni fecha cargada`
+                };
+            }
+
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaVenc = new Date(fechaIso + "T00:00:00");
+            const diasRestantes = Math.round((fechaVenc - hoy) / (1000 * 60 * 60 * 24));
+
+            if (diasRestantes < 0) {
+                return {
+                    etiqueta: "VENCIDO",
+                    clase: "doc-vencido",
+                    esProblema: true,
+                    detalle: `${nombreDoc}: Venció el ${fechaIso} (hace ${Math.abs(diasRestantes)} días)`
+                };
+            }
+            if (diasRestantes <= 30) {
+                return {
+                    etiqueta: "POR VENCER",
+                    clase: "doc-por-vencer",
+                    esProblema: true,
+                    detalle: `${nombreDoc}: Vence el ${fechaIso} (quedan ${diasRestantes} días)`
+                };
+            }
+            return {
+                etiqueta: "AL DÍA",
+                clase: "doc-al-dia",
+                esProblema: false,
+                detalle: `${nombreDoc}: Vigente hasta ${fechaIso} (${diasRestantes} días restantes)`
+            };
+        }
+
+        function obtenerResumenFlotaBus(bus) {
+            const docs = [
+                evaluarEstadoDocumento("Permiso de Circulación", bus.permisoCirculacion),
+                evaluarEstadoDocumento("Revisión Técnica", bus.revisionTecnica),
+                evaluarEstadoDocumento("Seguro SOAP", bus.seguroSoap)
+            ];
+            if (docs.some(d => d.etiqueta === "NO TIENE / FALTA")) {
+                return { texto: "FALTA PAPEL", clase: "doc-faltante" };
+            }
+            if (docs.some(d => d.etiqueta === "VENCIDO")) {
+                return { texto: "PAPEL VENCIDO", clase: "doc-vencido" };
+            }
+            if (docs.some(d => d.etiqueta === "POR VENCER")) {
+                return { texto: "POR VENCER", clase: "doc-por-vencer" };
+            }
+            return { texto: "PAPELES AL DÍA", clase: "doc-al-dia" };
+        }
+
+        function actualizarContadorEmpresa() {
+            const badge = document.getElementById('contador-flota-empresa');
+            if (badge) {
+                badge.innerText = `🚌 ${flotaEmpresaRegistrada.length} Unidades`;
+            }
+        }
+
+        function renderizarListaBusesEmpresa() {
+            const contenedor = document.getElementById('lista-buses-empresa');
+            if (!contenedor) return;
+
+            let html = "";
+            flotaEmpresaRegistrada.forEach((bus, idx) => {
+                const resumen = obtenerResumenFlotaBus(bus);
+                const selectedClass = idx === busEmpresaSeleccionadoIdx ? "selected" : "";
+                html += `
+                    <div class="empresa-bus-item ${selectedClass}" style="border-left-color: ${bus.color};" onclick="seleccionarBusEmpresa(${idx}, true)">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: ${bus.color}; font-size: 13px;">🚌 ${bus.recorrido}</strong>
+                            <span class="doc-badge ${resumen.clase}">${resumen.texto}</span>
+                        </div>
+                        <div style="font-size: 12px; color: #cbd5e1;">Chofer: <strong>${bus.chofer}</strong></div>
+                        <div style="font-size: 11px; color: #94a3b8;">Patente: ${bus.matricula} · ${bus.ruta}</div>
+                    </div>
+                `;
+            });
+            contenedor.innerHTML = html;
+            actualizarContadorEmpresa();
+        }
+
+        function seleccionarBusEmpresa(idx, centrarEnMapa = false) {
+            busEmpresaSeleccionadoIdx = idx;
+            const bus = flotaEmpresaRegistrada[idx];
+            renderizarListaBusesEmpresa();
+            renderizarDetalleBusEmpresa(bus);
+            actualizarMarcadoresEmpresa(centrarEnMapa ? bus : null);
+        }
+
+        function renderizarDetalleBusEmpresa(bus) {
+            const panel = document.getElementById('detalle-bus-empresa');
+            if (!panel || !bus) return;
+
+            const permiso = evaluarEstadoDocumento("Permiso de Circulación", bus.permisoCirculacion);
+            const revision = evaluarEstadoDocumento("Revisión Técnica", bus.revisionTecnica);
+            const soap = evaluarEstadoDocumento("Seguro SOAP", bus.seguroSoap);
+            const estadoGeneral = obtenerResumenFlotaBus(bus);
+
+            const alertas = [permiso, revision, soap].filter(d => d.esProblema);
+            const alertaHtml = alertas.length > 0
+                ? `<div class="alerta-papeles-box" style="border-color: #f59e0b;">
+                        <strong style="color: #fde047;">⚠️ Atención de papeles en esta unidad:</strong>
+                        <ul style="margin-top: 5px; padding-left: 16px; color: #f8fafc;">
+                            ${alertas.map(a => `<li><strong>${a.etiqueta}:</strong> ${a.detalle}</li>`).join('')}
+                        </ul>
+                   </div>`
+                : `<div class="alerta-papeles-box" style="border-color: #22c55e;">
+                        <strong style="color: #86efac;">✓ Sin papeles faltantes ni próximos a vencer:</strong> Toda la documentación está vigente.
+                   </div>`;
+
+            const busSim = flota.find(b => b.empresaId === bus.id);
+            const ubicacionTxt = busSim ? `${busSim.lat.toFixed(4)}, ${busSim.lng.toFixed(4)}` : "En ruta";
+
+            panel.innerHTML = `
+                <div class="empresa-detail-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="font-size: 11px; color: #4ade80; font-weight: 700; text-transform: uppercase;">Unidad de Tu Empresa</div>
+                            <h2 style="font-size: 21px; color: #ffffff; margin-top: 2px;">🚌 ${bus.recorrido}</h2>
+                            <p style="font-size: 12px; color: #cbd5e1; margin-top: 3px;">${bus.ruta}</p>
+                        </div>
+                        <span class="doc-badge ${estadoGeneral.clase}">${estadoGeneral.texto}</span>
+                    </div>
+
+                    ${alertaHtml}
+
+                    <div class="info-grid-2">
+                        <div class="info-box">
+                            <div class="info-box-label">Chofer Titular</div>
+                            <div class="info-box-value">👨‍✈️ ${bus.chofer}</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-box-label">Matrícula / Patente</div>
+                            <div style="margin-top: 3px;"><span class="patente-placa">${bus.matricula}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <div class="info-box-label">Ubicación Actual</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #38bdf8;">📍 ${ubicacionTxt}</div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div class="doc-item">
+                            <div>
+                                <div style="font-weight: 700; font-size: 13px; color: #f1f5f9;">📄 Permiso de Circulación</div>
+                                <div style="font-size: 11px; color: #94a3b8;">${permiso.detalle}</div>
+                            </div>
+                            <span class="doc-badge ${permiso.clase}">${permiso.etiqueta}</span>
+                        </div>
+
+                        <div class="doc-item">
+                            <div>
+                                <div style="font-weight: 700; font-size: 13px; color: #f1f5f9;">🔧 Revisión Técnica</div>
+                                <div style="font-size: 11px; color: #94a3b8;">${revision.detalle}</div>
+                            </div>
+                            <span class="doc-badge ${revision.clase}">${revision.etiqueta}</span>
+                        </div>
+
+                        <div class="doc-item">
+                            <div>
+                                <div style="font-weight: 700; font-size: 13px; color: #f1f5f9;">🛡️ Seguro SOAP</div>
+                                <div style="font-size: 11px; color: #94a3b8;">${soap.detalle}</div>
+                            </div>
+                            <span class="doc-badge ${soap.clase}">${soap.etiqueta}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function abrirModalNuevaMicroEmpresa() {
+            document.getElementById('modal-nueva-micro-empresa').style.display = 'flex';
+        }
+
+        function guardarNuevaMicroEmpresa(e) {
+            e.preventDefault();
+            const recorrido = document.getElementById('nueva-recorrido').value.trim();
+            const ruta = document.getElementById('nueva-ruta').value.trim();
+            const chofer = document.getElementById('nuevo-chofer').value.trim();
+            const matricula = document.getElementById('nueva-matricula').value.trim().toUpperCase();
+            const permiso = document.getElementById('nuevo-permiso').value;
+            const revision = document.getElementById('nuevo-revision').value;
+            const soap = document.getElementById('nuevo-soap').value;
+
+            const colorAsignado = COLORES_BUS[flotaEmpresaRegistrada.length % COLORES_BUS.length];
+            const rutaIdx = flotaEmpresaRegistrada.length % RECORRIDOS_VALPO.length;
+            const nuevaUnidad = {
+                id: `emp-${Date.now()}`,
+                recorrido,
+                ruta,
+                tramoCorto: ruta.slice(0, 28),
+                rutaIdx,
+                color: colorAsignado,
+                chofer,
+                matricula,
+                permisoCirculacion: permiso,
+                revisionTecnica: revision,
+                seguroSoap: soap,
+                velocidadBase: 0.3
+            };
+
+            flotaEmpresaRegistrada.push(nuevaUnidad);
+            busEmpresaSeleccionadoIdx = flotaEmpresaRegistrada.length - 1;
+
+            const nuevoBusMapa = new Bus(nuevaUnidad.recorrido, nuevaUnidad.color, nuevaUnidad.velocidadBase, nuevaUnidad.id, rutaIdx, ruta);
+            flota.push(nuevoBusMapa);
+            crearMarcadorBus(nuevoBusMapa);
+            crearMarcadorEmpresa(nuevoBusMapa);
+
+            renderizarListaBusesEmpresa();
+            renderizarDetalleBusEmpresa(nuevaUnidad);
+            actualizarMarcadoresEmpresa(nuevaUnidad);
+            cerrarModal('modal-nueva-micro-empresa');
+            document.getElementById('form-nueva-micro-empresa').reset();
+            alert(`"${recorrido}" registrada en la flota de tu empresa.`);
+        }
+
+        /* =========================================================
+           2. NAVEGACIÓN ENTRE PANTALLAS
+           ========================================================= */
+        function ocultarTodasLasPantallas() {
+            document.getElementById('pantalla-inicio').style.display = 'none';
+            document.getElementById('pantalla-rol').style.display = 'none';
+            document.getElementById('pantalla-simulador').style.display = 'none';
+            document.getElementById('pantalla-empresa').style.display = 'none';
+        }
+
+        function irAlInicio() {
+            ocultarTodasLasPantallas();
+            document.getElementById('pantalla-inicio').style.display = 'flex';
+        }
+
+        function irASeleccionRol() {
+            ocultarTodasLasPantallas();
+            document.getElementById('pantalla-rol').style.display = 'flex';
+        }
+
+        function ingresarComoRegular() {
+            ocultarTodasLasPantallas();
+            document.getElementById('pantalla-simulador').style.display = 'flex';
+            inicializarMapaValparaiso();
+            actualizarDestinoUsuario();
+            if (map) {
+                requestAnimationFrame(() => map.invalidateSize());
+            }
+        }
+
+        function ingresarComoEmpresa() {
+            ocultarTodasLasPantallas();
+            document.getElementById('pantalla-empresa').style.display = 'flex';
+            inicializarMapaEmpresa();
+            seleccionarBusEmpresa(busEmpresaSeleccionadoIdx, false);
+            if (mapaEmpresa) {
+                requestAnimationFrame(() => mapaEmpresa.invalidateSize());
+            }
+        }
+
+        /* =========================================================
+           3. MAPA REGULAR, UBICACIÓN Y DESTINO / TIEMPO ESTIMADO
+           ========================================================= */
+        let map = null;
+        let polylinesRecorridos = [];
+        let paraderosLayerGroup = null;
+        let marcadorMiPosicionRegular = null;
+
+        let mapaEmpresa = null;
+        let marcadoresEmpresa = {};
+        let marcadorMiPosicionEmpresa = null;
+
+        let destinoActual = {
+            nombre: paraderosValparaiso100[2].nombre,
+            lat: paraderosValparaiso100[2].lat,
+            lng: paraderosValparaiso100[2].lng
+        };
+
+        function actualizarDestinoUsuario() {
+            const input = document.getElementById('input-destino-usuario');
+            const textoSpan = document.getElementById('texto-destino-seleccionado');
+            const raw = (input ? input.value : '').trim();
+
+            if (raw) {
+                const matchId = raw.match(/^P(\d+)/i);
+                let encontrado = null;
+                if (matchId) {
+                    encontrado = paraderosValparaiso100.find(p => p.id === parseInt(matchId[1], 10));
+                }
+                if (!encontrado) {
+                    encontrado = paraderosValparaiso100.find(p =>
+                        p.nombre.toLowerCase().includes(raw.toLowerCase()) ||
+                        `p${p.id} · ${p.nombre}`.toLowerCase().includes(raw.toLowerCase())
+                    );
+                }
+                if (encontrado) {
+                    destinoActual = { nombre: `P${encontrado.id} · ${encontrado.nombre}`, lat: encontrado.lat, lng: encontrado.lng };
+                } else {
+                    // Variación determinista alrededor del centro de Valparaíso para destinos escritos a mano
+                    const hash = raw.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+                    const dLat = ((hash % 25) - 12) * 0.0009;
+                    const dLng = (((hash * 7) % 25) - 12) * 0.0011;
+                    destinoActual = {
+                        nombre: raw,
+                        lat: -33.0472 + dLat,
+                        lng: -71.6127 + dLng
+                    };
+                }
+            } else {
+                destinoActual = {
+                    nombre: `P3 · ${paraderosValparaiso100[2].nombre}`,
+                    lat: paraderosValparaiso100[2].lat,
+                    lng: paraderosValparaiso100[2].lng
+                };
+            }
+
+            if (textoSpan) {
+                textoSpan.innerHTML = `Destino: <strong>${destinoActual.nombre}</strong>`;
+            }
+        }
+
+        function enfocarDestinoEnMapa() {
+            actualizarDestinoUsuario();
+            if (map) {
+                map.setView([destinoActual.lat, destinoActual.lng], 16, { animate: true });
+                actualizarVisibilidadParaderosPorZoom();
+            }
+        }
+
+        function calcularMinutosLlegadaADestino(bus) {
+            const distKm = map
+                ? map.distance([bus.lat, bus.lng], [destinoActual.lat, destinoActual.lng]) / 1000
+                : Math.hypot(bus.lat - destinoActual.lat, bus.lng - destinoActual.lng) * 111;
+            const factorVel = velocidadSimulacion > 0 ? Math.max(0.5, velocidadSimulacion) : 1;
+            return Math.max(1, Math.round((distKm * 6.2) / factorVel));
+        }
+
+        function centrarEnMiPosicion(targetMap) {
+            if (!targetMap) return;
+            const fallbackCoord = [-33.0386, -71.6288];
+
+            const aplicarPosicion = (lat, lng, esReal) => {
+                targetMap.setView([lat, lng], 16, { animate: true });
+                const iconPos = L.divIcon({
+                    className: 'uniride-pos-icon',
+                    html: `<div style="background:#0ea5e9;color:#fff;border:2px solid #fff;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:900;white-space:nowrap;box-shadow:0 0 16px #38bdf8;">📍 Tú</div>`,
+                    iconSize: [52, 24],
+                    iconAnchor: [26, 12]
+                });
+
+                if (targetMap === map) {
+                    if (marcadorMiPosicionRegular) targetMap.removeLayer(marcadorMiPosicionRegular);
+                    marcadorMiPosicionRegular = L.marker([lat, lng], { icon: iconPos }).addTo(targetMap);
+                    actualizarVisibilidadParaderosPorZoom();
+                } else if (targetMap === mapaEmpresa) {
+                    if (marcadorMiPosicionEmpresa) targetMap.removeLayer(marcadorMiPosicionEmpresa);
+                    marcadorMiPosicionEmpresa = L.marker([lat, lng], { icon: iconPos }).addTo(targetMap);
+                }
+
+                if (!esReal) {
+                    const hud = targetMap === map ? document.getElementById('hud-paraderos-zoom') : document.getElementById('hud-empresa-mapa');
+                    if (hud) hud.innerHTML = `📍 Centrado en referencia Valparaíso (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                }
+            };
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => aplicarPosicion(pos.coords.latitude, pos.coords.longitude, true),
+                    () => aplicarPosicion(fallbackCoord[0], fallbackCoord[1], false),
+                    { timeout: 5000 }
+                );
+            } else {
+                aplicarPosicion(fallbackCoord[0], fallbackCoord[1], false);
+            }
+        }
+
+        function construirHtmlBusMarker(bus, isSelected = false) {
+            return `
+                <div class="bus-marker-anim-wrap ${isSelected ? 'bus-marker-anim-wrap--selected' : ''}">
+                    <div class="bus-marker-top-label" style="border-color: ${bus.color};">${bus.id}</div>
+                    <div class="bus-marker-body-box">
+                        <span class="bus-marker-beacon" style="border-color: ${bus.color};"></span>
+                        <svg class="bus-marker-svg" viewBox="0 0 64 36" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="4" y="5" width="54" height="21" rx="6" fill="#0f172a" stroke="${bus.color}" stroke-width="2.5"/>
+                            <rect x="9" y="9" width="9" height="8" rx="1.5" fill="${bus.color}" fill-opacity="0.35" stroke="${bus.color}" stroke-width="1.2"/>
+                            <rect x="21" y="9" width="9" height="8" rx="1.5" fill="${bus.color}" fill-opacity="0.35" stroke="${bus.color}" stroke-width="1.2"/>
+                            <rect x="33" y="9" width="9" height="8" rx="1.5" fill="${bus.color}" fill-opacity="0.35" stroke="${bus.color}" stroke-width="1.2"/>
+                            <rect x="45" y="9" width="8" height="14" rx="1.5" fill="${bus.color}" fill-opacity="0.5" stroke="${bus.color}" stroke-width="1.2"/>
+                            <circle cx="16" cy="27" r="4.5" fill="#020617" stroke="${bus.color}" stroke-width="2.2"/>
+                            <circle cx="46" cy="27" r="4.5" fill="#020617" stroke="${bus.color}" stroke-width="2.2"/>
+                            <circle cx="58" cy="19" r="2" fill="#fde047"/>
+                        </svg>
+                        <span class="bus-marker-psg-badge" style="border-color: ${bus.color};">${bus.pasajeros}/${bus.capacidad}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function actualizarVisibilidadParaderosPorZoom() {
+            if (!map || !paraderosLayerGroup) return;
+            const zoomActual = map.getZoom();
+            const hudZoom = document.getElementById('hud-paraderos-zoom');
+
+            if (zoomActual >= ZOOM_PARADEROS_MIN) {
+                if (!map.hasLayer(paraderosLayerGroup)) {
+                    paraderosLayerGroup.addTo(map);
+                }
+                if (hudZoom) {
+                    hudZoom.innerHTML = `⚓ <strong>Valparaíso</strong> · Zoom ${zoomActual}: <strong>100 Paraderos</strong> visibles`;
+                }
+            } else {
+                if (map.hasLayer(paraderosLayerGroup)) {
+                    map.removeLayer(paraderosLayerGroup);
+                }
+                if (hudZoom) {
+                    hudZoom.innerHTML = `⚓ <strong>Valparaíso</strong> · Acerca el zoom (≥ ${ZOOM_PARADEROS_MIN}) para ver paraderos`;
+                }
+            }
+        }
+
+        function inicializarMapaValparaiso() {
+            if (map || typeof L === 'undefined') return;
+
+            map = L.map('mapa-valparaiso').setView([-33.0472, -71.6127], 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            polylinesRecorridos = RECORRIDOS_VALPO.map((rec, idx) => {
+                const colorBase = idx === 0 ? '#38bdf8' : (idx === 1 ? '#22c55e' : (idx === 2 ? '#f97316' : '#a855f7'));
+                return L.polyline(rec.puntos, {
+                    color: colorBase,
+                    weight: 6,
+                    opacity: 0
+                }).addTo(map);
+            });
+
+            paraderosLayerGroup = L.layerGroup();
+            paraderosValparaiso100.forEach(p => {
+                const iconParadero = L.divIcon({
+                    className: 'uniride-paradero-icon',
+                    html: `<div class="paradero-marker-box"><span class="paradero-badge-p">P${p.id}</span><span>${p.nombre}</span></div>`,
+                    iconSize: [140, 20],
+                    iconAnchor: [70, 10]
+                });
+
+                L.marker([p.lat, p.lng], { icon: iconParadero, interactive: true })
+                    .on('click', () => abrirModalParadero(p))
+                    .addTo(paraderosLayerGroup);
+            });
+
+            map.on('zoomend', actualizarVisibilidadParaderosPorZoom);
+            actualizarVisibilidadParaderosPorZoom();
+
+            flota.forEach(bus => crearMarcadorBus(bus));
+            actualizarDistincionRecorridoEnMapa();
+        }
+
+        function inicializarMapaEmpresa() {
+            if (mapaEmpresa || typeof L === 'undefined') return;
+
+            mapaEmpresa = L.map('mapa-empresa').setView([-33.0472, -71.6127], 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(mapaEmpresa);
+
+            flota.forEach(bus => {
+                if (bus.empresaId) crearMarcadorEmpresa(bus);
+            });
+            actualizarMarcadoresEmpresa(null);
+        }
+
+        function crearMarcadorEmpresa(bus) {
+            if (!mapaEmpresa || typeof L === 'undefined' || !bus.empresaId || marcadoresEmpresa[bus.id]) return;
+
+            const iconBusEmp = L.divIcon({
+                className: 'uniride-bus-icon',
+                html: construirHtmlBusMarker(bus, false),
+                iconSize: [112, 62],
+                iconAnchor: [56, 46]
+            });
+
+            const marker = L.marker([bus.lat, bus.lng], {
+                icon: iconBusEmp,
+                interactive: true
+            }).addTo(mapaEmpresa);
+
+            marker.on('click', () => {
+                const idx = flotaEmpresaRegistrada.findIndex(f => f.id === bus.empresaId);
+                if (idx !== -1) seleccionarBusEmpresa(idx, true);
+            });
+
+            marcadoresEmpresa[bus.id] = marker;
+        }
+
+        function removerMarcadorEmpresa(bus) {
+            if (mapaEmpresa && marcadoresEmpresa[bus.id]) {
+                mapaEmpresa.removeLayer(marcadoresEmpresa[bus.id]);
+                delete marcadoresEmpresa[bus.id];
+            }
+        }
+
+        function actualizarMarcadoresEmpresa(busAFocar = null) {
+            const seleccionada = flotaEmpresaRegistrada[busEmpresaSeleccionadoIdx] || null;
+            const hudEmp = document.getElementById('hud-empresa-mapa');
+
+            flota.forEach(bus => {
+                if (!bus.empresaId) return;
+                if (!marcadoresEmpresa[bus.id]) crearMarcadorEmpresa(bus);
+                const m = marcadoresEmpresa[bus.id];
+                if (!m) return;
+                m.setLatLng([bus.lat, bus.lng]);
+                const el = m.getElement();
+                if (el) {
+                    const isSel = seleccionada && bus.empresaId === seleccionada.id;
+                    el.innerHTML = construirHtmlBusMarker(bus, isSel);
+                }
+            });
+
+            if (busAFocar && mapaEmpresa) {
+                const busSim = flota.find(b => b.empresaId === busAFocar.id);
+                if (busSim) {
+                    mapaEmpresa.setView([busSim.lat, busSim.lng], Math.max(mapaEmpresa.getZoom(), 15), { animate: true });
+                }
+            }
+
+            if (hudEmp && seleccionada) {
+                hudEmp.innerHTML = `📍 <strong>Solo tus micros (${flotaEmpresaRegistrada.length})</strong> · <strong style="color:${seleccionada.color};">${seleccionada.recorrido}</strong> (${seleccionada.matricula})`;
+            }
+        }
+
+        function actualizarDistincionRecorridoEnMapa() {
+            const leyenda = document.getElementById('leyenda-recorrido-activa');
+            const busActiva = flota.find(b => b.id === microComentariosActiva) || null;
+
+            if (!busActiva) {
+                polylinesRecorridos.forEach(poly => poly.setStyle({ opacity: 0 }));
+                if (leyenda) {
+                    leyenda.style.borderColor = '#38bdf8';
+                    leyenda.innerHTML = `🛤️ <strong>Recorrido:</strong> Selecciona una micro para mostrar su trazado.`;
+                }
+            } else {
+                polylinesRecorridos.forEach((poly, idx) => {
+                    if (idx === busActiva.rutaIdx) {
+                        poly.setStyle({ color: busActiva.color, weight: 6.5, opacity: 0.95 });
+                        poly.bringToFront();
+                    } else {
+                        poly.setStyle({ opacity: 0 });
+                    }
+                });
+                if (leyenda) {
+                    leyenda.style.borderColor = busActiva.color;
+                    leyenda.innerHTML = `🛤️ <strong style="color:${busActiva.color};">${busActiva.id}:</strong> ${busActiva.descripcionRecorrido}`;
+                }
+            }
+
+            flota.forEach(b => {
+                if (!b.marker) return;
+                const el = b.marker.getElement();
+                if (!el) return;
+                const wrap = el.querySelector('.bus-marker-anim-wrap');
+                if (!wrap) return;
+                if (busActiva && b.id === busActiva.id) {
+                    wrap.classList.add('bus-marker-anim-wrap--selected');
+                } else {
+                    wrap.classList.remove('bus-marker-anim-wrap--selected');
+                }
+            });
+        }
+
+        function crearMarcadorBus(bus) {
+            if (!map || typeof L === 'undefined' || bus.marker) return;
+
+            const iconBus = L.divIcon({
+                className: 'uniride-bus-icon',
+                html: construirHtmlBusMarker(bus, false),
+                iconSize: [112, 62],
+                iconAnchor: [56, 46]
+            });
+
+            const marker = L.marker([bus.lat, bus.lng], {
+                icon: iconBus,
+                interactive: true
+            }).addTo(map);
+
+            marker.on('click', () => {
+                seleccionarMicroYDestacar(bus, true);
+            });
+
+            bus.marker = marker;
+        }
+
+        function removerMarcadorBus(bus) {
+            if (map && bus.marker) {
+                map.removeLayer(bus.marker);
+                bus.marker = null;
+            }
+        }
+
+        let velocidadSimulacion = 0.5;
+        let saldoUsuario = 4850;
+        let gastoMes = 3150;
+        let tipoPase = 'tne';
+        let historialViajes = [
+            { micro: 'Línea 601', tramo: 'LOCAL', costo: 160, hora: '07:45' },
+            { micro: 'Línea 506', tramo: 'PLAN-CERRO', costo: 250, hora: '13:20' }
+        ];
+
+        let comentariosPorMicro = {
+            "Línea 601": [
+                { rating: 5, texto: "Buena frecuencia desde Playa Ancha hacia el Plan y Av. España.", hora: "08:10" }
+            ],
+            "Línea 506": [
+                { rating: 4, texto: "Rápida por Av. Argentina y sector Congreso.", hora: "08:22" }
+            ],
+            "Línea 603": [
+                { rating: 5, texto: "Conecta directo Playa Ancha con Errázuriz y Av. España.", hora: "08:45" }
+            ]
+        };
+
+        let microComentariosActiva = null;
+        let tiempoHora = 8.0;
+        let esNoche = false;
+        let esPeak = false;
+        let estadoHorarioStr = "VALLE";
+
+        class Bus {
+            constructor(id, color, velocidadBase, empresaId = null, rutaIdx = 0, descripcionRecorrido = null) {
+                this.id = id;
+                this.color = color;
+                this.velocidadBase = velocidadBase;
+                this.empresaId = empresaId;
+                this.rutaIdx = rutaIdx % RECORRIDOS_VALPO.length;
+                const rec = RECORRIDOS_VALPO[this.rutaIdx];
+                this.descripcionRecorrido = descripcionRecorrido || rec.nombreRecorrido;
+                this.tramoCorto = rec.tramoCorto;
+                this.puntosRuta = rec.puntos;
+
+                this.segIdx = Math.floor(Math.random() * Math.max(1, this.puntosRuta.length - 1));
+                this.t = Math.random();
+                this.lat = this.puntosRuta[this.segIdx][0];
+                this.lng = this.puntosRuta[this.segIdx][1];
+                this.marker = null;
+                this.capacidad = 50;
+                this.pasajeros = esPeak ? Math.floor(Math.random() * 8) + 42 : Math.floor(Math.random() * 15) + 8;
+
+                this.tarifas = {
+                    general: { local: 330, cerro: 430, directo: 650 },
+                    tne: { local: 160, cerro: 250, directo: 280 },
+                    adulto: { local: 180, cerro: 280, directo: 420 }
+                };
+
+                this.actualizarCoordenada();
+            }
+
+            actualizarCoordenada() {
+                const a = this.puntosRuta[this.segIdx];
+                const b = this.puntosRuta[(this.segIdx + 1) % this.puntosRuta.length];
+                this.lat = a[0] + (b[0] - a[0]) * this.t;
+                this.lng = a[1] + (b[1] - a[1]) * this.t;
+            }
+
+            getFichaEmpresa() {
+                if (this.empresaId) {
+                    return flotaEmpresaRegistrada.find(f => f.id === this.empresaId) || null;
+                }
+                return flotaEmpresaRegistrada.find(f => f.recorrido.toLowerCase() === this.id.toLowerCase()) || null;
+            }
+
+            update() {
+                let factorHorario = esNoche ? 0.72 : (esPeak ? 1.15 : 1.0);
+                let avance = (this.velocidadBase * 0.0011) * velocidadSimulacion * factorHorario;
+
+                if (avance > 0) {
+                    this.t += avance;
+                    if (this.t >= 1) {
+                        this.t = this.t % 1;
+                        this.segIdx = (this.segIdx + 1) % (this.puntosRuta.length - 1);
+
+                        if (this.segIdx === 0) {
+                            if (esPeak) {
+                                this.pasajeros = Math.min(this.capacidad, Math.max(40, this.pasajeros + Math.floor(Math.random() * 5) + 2));
+                            } else if (esNoche) {
+                                this.pasajeros = Math.max(2, Math.min(12, this.pasajeros - Math.floor(Math.random() * 4)));
+                            } else {
+                                this.pasajeros = Math.max(10, Math.min(28, this.pasajeros + Math.floor(Math.random() * 5) - 2));
+                            }
+                        }
+                    }
+                }
+
+                this.actualizarCoordenada();
+
+                if (this.marker) {
+                    this.marker.setLatLng([this.lat, this.lng]);
+                    const el = this.marker.getElement();
+                    if (el) {
+                        const topLabel = el.querySelector('.bus-marker-top-label');
+                        const psgBadge = el.querySelector('.bus-marker-psg-badge');
+                        if (topLabel) topLabel.textContent = this.id;
+                        if (psgBadge) psgBadge.textContent = `${this.pasajeros}/${this.capacidad}`;
+                    }
+                }
+            }
+        }
+
+        let flota = flotaEmpresaRegistrada.map(
+            item => new Bus(item.recorrido, item.color, item.velocidadBase, item.id, item.rutaIdx, item.ruta)
+        );
+
+        let busSeleccionado = null;
+        let paraderoSeleccionado = null;
+
+        function cambiarVelocidad(vel, btnEl) {
+            velocidadSimulacion = vel;
+            document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+        }
+
+        function manualTimeChange(val) {
+            tiempoHora = parseFloat(val);
+        }
+
+        /* =========================================================
+           4. SELECCIÓN, RECORRIDO Y COMENTARIOS
+           ========================================================= */
+        function seleccionarMicroYDestacar(bus, abrirModalPago = false) {
+            if (!bus) return;
+            busSeleccionado = bus;
+            abrirComentariosDeMicro(bus);
+            actualizarDistincionRecorridoEnMapa();
+            if (abrirModalPago) abrirModalMicro(bus);
+        }
+
+        function abrirComentariosDeMicro(busOrNombre) {
+            const bus = typeof busOrNombre === 'string' ? flota.find(b => b.id === busOrNombre) : busOrNombre;
+            const nombreMicro = bus ? bus.id : busOrNombre;
+            microComentariosActiva = nombreMicro;
+
+            const panel = document.getElementById('panel-comentarios-micro');
+            const titulo = document.getElementById('comentario-micro-titulo');
+            const recSub = document.getElementById('comentario-micro-recorrido');
+
+            if (titulo) titulo.innerText = nombreMicro;
+            if (recSub) {
+                const desc = bus ? bus.descripcionRecorrido : "Recorrido Valparaíso";
+                recSub.innerText = `🛤️ ${desc}`;
+                recSub.style.color = bus ? bus.color : '#cbd5e1';
+            }
+            if (panel) panel.style.display = 'flex';
+            renderizarComentariosMicro();
+        }
+
+        function cerrarComentariosMicro() {
+            microComentariosActiva = null;
+            const panel = document.getElementById('panel-comentarios-micro');
+            if (panel) panel.style.display = 'none';
+            actualizarDistincionRecorridoEnMapa();
+        }
+
+        function renderizarComentariosMicro() {
+            const lista = document.getElementById('lista-comentarios-micro');
+            if (!lista || !microComentariosActiva) return;
+
+            const items = comentariosPorMicro[microComentariosActiva] || [];
+            if (items.length === 0) {
+                lista.innerHTML = `<div style="font-size: 11px; color: #94a3b8; padding: 6px;">Aún no hay comentarios para ${microComentariosActiva}.</div>`;
+                return;
+            }
+
+            lista.innerHTML = items.slice().reverse().map(c => {
+                const estrellas = "★".repeat(c.rating) + "☆".repeat(5 - c.rating);
+                return `
+                    <div class="comentario-item">
+                        <div class="comentario-top">
+                            <span>${c.hora}</span>
+                            <span style="color: #eab308;">${estrellas}</span>
+                        </div>
+                        <div class="comentario-texto">${c.texto}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function agregarComentarioMicro(e) {
+            e.preventDefault();
+            if (!microComentariosActiva) return;
+
+            const ratingInput = document.getElementById('comentario-micro-rating');
+            const textoInput = document.getElementById('comentario-micro-texto');
+            const texto = textoInput.value.trim();
+            if (!texto) return;
+
+            let h = Math.floor(tiempoHora);
+            let m = Math.floor((tiempoHora - h) * 60);
+            let timeStr = (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m);
+
+            if (!comentariosPorMicro[microComentariosActiva]) comentariosPorMicro[microComentariosActiva] = [];
+            comentariosPorMicro[microComentariosActiva].push({
+                rating: parseInt(ratingInput.value, 10) || 5,
+                texto,
+                hora: timeStr
+            });
+
+            textoInput.value = '';
+            renderizarComentariosMicro();
+        }
+
+        /* =========================================================
+           5. CUENTA, MODALES Y FLOTA
+           ========================================================= */
+        function actualizarUIUsuario() {
+            document.getElementById('saldo-user').innerText = saldoUsuario;
+            document.getElementById('modal-saldo').innerText = saldoUsuario;
+            document.getElementById('modal-gasto').innerText = gastoMes;
+
+            let histHtml = "";
+            historialViajes.slice().reverse().forEach(h => {
+                histHtml += `<div class="history-item"><div><strong>${h.micro}</strong> (${h.tramo}) - ${h.hora}</div><div style="color: #ef4444;">-$${h.costo}</div></div>`;
+            });
+            document.getElementById('historial-lista').innerHTML = histHtml;
+        }
+
+        function abrirModalCuenta() {
+            actualizarUIUsuario();
+            document.getElementById('modal-cuenta').style.display = 'flex';
+        }
+
+        function cerrarModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function recargarSaldo() {
+            saldoUsuario += 2000;
+            actualizarUIUsuario();
+        }
+
+        function cambiarTipoPase(val) {
+            tipoPase = val;
+        }
+
+        function abrirModalParadero(paradero) {
+            paraderoSeleccionado = paradero;
+            document.getElementById('paradero-modal-title').innerText = `P${paradero.id} · ${paradero.nombre}`;
+
+            let lineasHtml = "";
+            flota.forEach(b => {
+                let pct = Math.round((b.pasajeros / b.capacidad) * 100);
+                lineasHtml += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #162238; padding: 6px 10px; border-radius: 6px; border: 1px solid #334155;">
+                        <div>
+                            <span style="color: ${b.color}; font-weight: bold;">🚌 ${b.id}</span>
+                            <div style="font-size: 10px; color: #cbd5e1;">${b.descripcionRecorrido}</div>
+                        </div>
+                        <span style="font-size: 11px; color: #94a3b8;">Ocupación: ${pct}%</span>
+                    </div>
+                `;
+            });
+            document.getElementById('paradero-lineas-list').innerHTML = lineasHtml;
+
+            let arribosHtml = "";
+            flota.forEach(b => {
+                const distKm = map
+                    ? map.distance([b.lat, b.lng], [paradero.lat, paradero.lng]) / 1000
+                    : Math.hypot(b.lat - paradero.lat, b.lng - paradero.lng) * 111;
+                let minutosEst = Math.max(1, Math.round((distKm * 6.2) / (velocidadSimulacion || 0.5)));
+                arribosHtml += `
+                    <div class="history-item">
+                        <div><strong>${b.id}</strong> · ${b.tramoCorto}</div>
+                        <div style="color: #38bdf8; font-weight: bold;">~ ${minutosEst} min</div>
+                    </div>
+                `;
+            });
+            document.getElementById('paradero-arribos-list').innerHTML = arribosHtml;
+
+            document.getElementById('modal-paradero').style.display = 'flex';
+        }
+
+        function abrirModalMicro(bus) {
+            busSeleccionado = bus;
+            abrirComentariosDeMicro(bus);
+            const ficha = bus.getFichaEmpresa();
+            const proxPunto = bus.puntosRuta[(bus.segIdx + 1) % bus.puntosRuta.length];
+            const proxParadero = paraderosValparaiso100.reduce((prev, curr) => {
+                const dPrev = Math.hypot(prev.lat - proxPunto[0], prev.lng - proxPunto[1]);
+                const dCurr = Math.hypot(curr.lat - proxPunto[0], curr.lng - proxPunto[1]);
+                return dCurr < dPrev ? curr : prev;
+            }, paraderosValparaiso100[0]);
+
+            const minDestino = calcularMinutosLlegadaADestino(bus);
+            document.getElementById('micro-modal-title').innerText = `${bus.id} (${bus.pasajeros}/${bus.capacidad} Psg)`;
+            document.getElementById('micro-modal-recorrido').innerText = `🛤️ Recorrido: ${bus.descripcionRecorrido}`;
+            document.getElementById('micro-modal-info').innerText = `Próxima parada: P${proxParadero.id} · ${proxParadero.nombre} · ~${minDestino} min a "${destinoActual.nombre}"`;
+
+            const fleetInfo = document.getElementById('micro-modal-fleet');
+            if (ficha) {
+                fleetInfo.innerText = `🏢 Unidad de Empresa · Patente: ${ficha.matricula} · Chofer: ${ficha.chofer}`;
+            } else {
+                fleetInfo.innerText = `🚌 Unidad operativa en Valparaíso`;
+            }
+
+            document.getElementById('price-gen-local').innerText = `$${bus.tarifas.general.local}`;
+            document.getElementById('price-gen-cerro').innerText = `$${bus.tarifas.general.cerro}`;
+            document.getElementById('price-gen-directo').innerText = `$${bus.tarifas.general.directo}`;
+
+            document.getElementById('price-tne-local').innerText = `$${bus.tarifas.tne.local}`;
+            document.getElementById('price-tne-cerro').innerText = `$${bus.tarifas.tne.cerro}`;
+            document.getElementById('price-tne-directo').innerText = `$${bus.tarifas.tne.directo}`;
+
+            document.getElementById('price-adu-local').innerText = `$${bus.tarifas.adulto.local}`;
+            document.getElementById('price-adu-cerro').innerText = `$${bus.tarifas.adulto.cerro}`;
+            document.getElementById('price-adu-directo').innerText = `$${bus.tarifas.adulto.directo}`;
+
+            document.getElementById('modal-micro').style.display = 'flex';
+        }
+
+        function subirAMicro() {
+            if (!busSeleccionado) return;
+            let tramo = document.getElementById('select-tramo').value;
+            let costo = busSeleccionado.tarifas[tipoPase][tramo];
+
+            if (saldoUsuario >= costo) {
+                saldoUsuario -= costo;
+                gastoMes += costo;
+
+                let h = Math.floor(tiempoHora);
+                let m = Math.floor((tiempoHora - h) * 60);
+                let timeStr = (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m);
+
+                historialViajes.push({ micro: busSeleccionado.id, tramo: tramo.toUpperCase(), costo: costo, hora: timeStr });
+                busSeleccionado.pasajeros = Math.min(busSeleccionado.capacidad, busSeleccionado.pasajeros + 1);
+
+                actualizarUIUsuario();
+                cerrarModal('modal-micro');
+                alert(`¡Pasaje Pagado! Se descontaron $${costo} de tu saldo.`);
+            } else {
+                alert("Saldo insuficiente. Por favor recarga tu saldo.");
+            }
+        }
+
+        function agregarMicro() {
+            const usados = new Set(flota.map(b => b.id));
+            const disponibles = LINEAS_ADICIONALES_VALPO.filter(l => !usados.has(l));
+            const nombreLinea = disponibles.length > 0
+                ? disponibles[0]
+                : `Línea ${600 + Math.floor(Math.random() * 20)}`;
+
+            const color = COLORES_BUS[flota.length % COLORES_BUS.length];
+            const rutaIdx = flota.length % RECORRIDOS_VALPO.length;
+            const nueva = new Bus(nombreLinea, color, 0.3, null, rutaIdx);
+            flota.push(nueva);
+            crearMarcadorBus(nueva);
+            actualizarDistincionRecorridoEnMapa();
+        }
+
+        function eliminarMicro(index, e) {
+            e.stopPropagation();
+            const eliminada = flota[index];
+            if (eliminada) {
+                removerMarcadorBus(eliminada);
+                removerMarcadorEmpresa(eliminada);
+                if (microComentariosActiva === eliminada.id) {
+                    cerrarComentariosMicro();
+                }
+            }
+            flota.splice(index, 1);
+            actualizarDistincionRecorridoEnMapa();
+        }
+
+        function actualizarLogica() {
+            if (velocidadSimulacion > 0) {
+                tiempoHora += 0.0012 * velocidadSimulacion;
+                if (tiempoHora >= 24) tiempoHora = 0;
+                let slider = document.getElementById('timeSlider');
+                if (slider) slider.value = tiempoHora;
+            }
+
+            esNoche = (tiempoHora >= 20.5 || tiempoHora < 6);
+
+            if (tiempoHora >= 7.0 && tiempoHora <= 9.0) {
+                esPeak = true;
+                estadoHorarioStr = "🔥 PEAK MAÑANA";
+            } else if (tiempoHora >= 18.0 && tiempoHora <= 20.0) {
+                esPeak = true;
+                estadoHorarioStr = "🔥 PEAK TARDE";
+            } else if (esNoche) {
+                esPeak = false;
+                estadoHorarioStr = "🌙 NOCHE";
+            } else {
+                esPeak = false;
+                estadoHorarioStr = "🌿 VALLE";
+            }
+
+            let h = Math.floor(tiempoHora);
+            let m = Math.floor((tiempoHora - h) * 60);
+            let timeStr = (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m);
+            let relojDisp = document.getElementById('reloj-display');
+            if (relojDisp) relojDisp.innerText = `🕒 ${timeStr} (${estadoHorarioStr})`;
+
+            flota.forEach(b => b.update());
+
+            let mejorMin = Infinity;
+            let mejorBusId = "";
+            flota.forEach(b => {
+                const minEta = calcularMinutosLlegadaADestino(b);
+                if (minEta < mejorMin) {
+                    mejorMin = minEta;
+                    mejorBusId = b.id;
+                }
+            });
+            const badgeMejor = document.getElementById('eta-mejor-bus');
+            if (badgeMejor && flota.length > 0) {
+                badgeMejor.innerText = `⚡ ${mejorBusId}: ~${mejorMin} min`;
+            }
+
+            let panelHtml = "";
+            flota.forEach((b, idx) => {
+                let pct = (b.pasajeros / b.capacidad) * 100;
+                let estadoClass = pct >= 80 ? "status-llena" : (pct >= 40 ? "status-media" : "status-desierta");
+                let estadoText = pct >= 80 ? "LLENA" : (pct >= 40 ? "MEDIA" : "DISPONIBLE");
+                let barColor = pct >= 80 ? "#ef4444" : (pct >= 40 ? "#eab308" : "#22c55e");
+                const minLlegada = calcularMinutosLlegadaADestino(b);
+                const activeClass = microComentariosActiva === b.id ? "active-bus" : "";
+
+                panelHtml += `
+                    <div class="bus-card ${activeClass}" style="border-left-color: ${b.color};" onclick="seleccionarMicroYDestacar(flota[${idx}], true)">
+                        <div class="bus-card-header">
+                            <div class="bus-card-title">
+                                <span>🚌 ${b.id}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="bus-status-tag ${estadoClass}">${estadoText}</span>
+                                <button class="btn-delete-bus" onclick="eliminarMicro(${idx}, event)">✕</button>
+                            </div>
+                        </div>
+                        <div class="bus-eta-pill">
+                            ⏱️ Llega aprox. en <strong>~${minLlegada} min</strong> a tu destino
+                        </div>
+                        <div class="bus-card-route" style="border-color: ${activeClass ? b.color : 'rgba(56, 189, 248, 0.3)'};">
+                            🛤️ <strong>${b.descripcionRecorrido}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #cbd5e1; font-weight: 600;">
+                            <span>Ocupación:</span>
+                            <span style="color: ${barColor};">${b.pasajeros} / ${b.capacidad} psg</span>
+                        </div>
+                        <div class="bus-card-fares-preview">
+                            <span>TNE: $${b.tarifas.tne.local} - $${b.tarifas.tne.directo}</span>
+                            <span>Gral: $${b.tarifas.general.local} - $${b.tarifas.general.directo}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${pct}%; background: ${barColor};"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            let panelBuses = document.getElementById('panel-buses');
+            if (panelBuses) panelBuses.innerHTML = panelHtml;
+        }
+
+        function loop() {
+            const simPantalla = document.getElementById('pantalla-simulador');
+            const empPantalla = document.getElementById('pantalla-empresa');
+            const simVisible = simPantalla && simPantalla.style.display === 'flex';
+            const empVisible = empPantalla && empPantalla.style.display === 'flex';
+
+            if (simVisible || empVisible) {
+                actualizarLogica();
+            }
+            if (empVisible && mapaEmpresa) {
+                actualizarMarcadoresEmpresa(null);
+            }
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
